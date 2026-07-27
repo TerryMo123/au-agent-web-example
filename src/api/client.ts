@@ -1,17 +1,68 @@
 import axios from 'axios'
 import type {
+  AuthUser,
   ChatResponse,
   DataPage,
   FilterOptions,
+  LoginResponse,
   OverviewResponse,
   SessionDetail,
   SessionSummary,
 } from '../types'
 
+const TOKEN_KEY = 'au_agent_token'
+
+export function getAuthToken() {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setAuthToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function clearAuthToken() {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
 const http = axios.create({
   baseURL: '/api/v1',
   timeout: 120000,
 })
+
+http.interceptors.request.use((config) => {
+  const token = getAuthToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+http.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (error?.response?.status === 401) {
+      clearAuthToken()
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = `/login?from=${encodeURIComponent(window.location.pathname)}`
+      }
+    }
+    const detail = error?.response?.data?.detail
+    if (typeof detail === 'string') {
+      return Promise.reject(new Error(detail))
+    }
+    return Promise.reject(error)
+  },
+)
+
+export async function login(username: string, password: string) {
+  const { data } = await http.post<LoginResponse>('/auth/login', { username, password })
+  return data
+}
+
+export async function fetchMe() {
+  const { data } = await http.get<AuthUser>('/auth/me')
+  return data
+}
 
 export async function listSessions(limit = 50) {
   const { data } = await http.get<{ items: SessionSummary[]; total: number }>(
@@ -49,12 +100,22 @@ export async function streamChat(
   handlers: StreamHandlers,
   signal?: AbortSignal,
 ) {
+  const token = getAuthToken()
   const res = await fetch('/api/v1/chat/stream', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({ message, session_id: sessionId }),
     signal,
   })
+  if (res.status === 401) {
+    clearAuthToken()
+    window.location.href = '/login'
+    throw new Error('登录已失效')
+  }
   if (!res.ok || !res.body) {
     throw new Error(`流式请求失败: ${res.status}`)
   }

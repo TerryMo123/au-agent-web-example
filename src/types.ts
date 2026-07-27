@@ -1,5 +1,26 @@
 export type ChatRole = 'user' | 'assistant' | 'system'
 
+export type UserRole = 'manager' | 'user'
+
+export interface AuthUser {
+  id: number
+  username: string
+  role: UserRole
+  display_name: string
+  permissions?: {
+    view_sensitive_finance?: boolean
+    view_freight_rates?: boolean
+    view_cost_impact?: boolean
+    view_purchase_cost?: boolean
+  }
+}
+
+export interface LoginResponse {
+  access_token: string
+  token_type: string
+  user: AuthUser
+}
+
 export interface ChatSource {
   title?: string
   category?: string

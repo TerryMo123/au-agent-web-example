@@ -1,9 +1,12 @@
 import { ConfigProvider, App as AntApp } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AuthProvider } from './auth/AuthContext'
+import RequireAuth from './components/RequireAuth'
 import AppLayout from './layouts/AppLayout'
 import ChatPage from './pages/ChatPage'
 import DataPage from './pages/DataPage'
+import LoginPage from './pages/LoginPage'
 import 'dayjs/locale/zh-cn'
 
 const theme = {
@@ -23,15 +26,24 @@ export default function App() {
   return (
     <ConfigProvider locale={zhCN} theme={theme}>
       <AntApp>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<Navigate to="/chat" replace />} />
-              <Route path="/chat" element={<ChatPage />} />
-              <Route path="/data" element={<DataPage />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route
+                element={
+                  <RequireAuth>
+                    <AppLayout />
+                  </RequireAuth>
+                }
+              >
+                <Route path="/" element={<Navigate to="/chat" replace />} />
+                <Route path="/chat" element={<ChatPage />} />
+                <Route path="/data" element={<DataPage />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
       </AntApp>
     </ConfigProvider>
   )

@@ -20,6 +20,7 @@ import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { Line } from '@ant-design/charts'
 import dayjs, { type Dayjs } from 'dayjs'
 import { fetchDataPage, fetchFilters, fetchOverview } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 import type { FilterOptions, OverviewResponse } from '../types'
 
 const { RangePicker } = DatePicker
@@ -60,6 +61,7 @@ function rangeParams(range?: [Dayjs, Dayjs] | null) {
 
 export default function DataPage() {
   const { message } = App.useApp()
+  const { isManager } = useAuth()
   const [tab, setTab] = useState<TabKey>('overview')
   const [filters, setFilters] = useState<FilterOptions | null>(null)
   const [overview, setOverview] = useState<OverviewResponse | null>(null)
@@ -304,24 +306,41 @@ export default function DataPage() {
     ])
   }, [overview])
 
+  const tabItems = useMemo(() => {
+    const all: { key: TabKey; label: string }[] = [
+      { key: 'overview', label: '经营总览' },
+      { key: 'products', label: '商品' },
+      { key: 'orders', label: '订单' },
+      { key: 'inventory', label: '库存' },
+      { key: 'returns', label: '退货' },
+      { key: 'ads', label: '广告' },
+      { key: 'metrics', label: 'SKU 日指标' },
+      { key: 'lifecycle', label: '生命周期' },
+      { key: 'batches', label: '供应批次' },
+      { key: 'freight-rates', label: '海运费率' },
+      { key: 'cost-impact', label: '费用-营收' },
+    ]
+    if (isManager) return all
+    return all.filter((t) => t.key !== 'freight-rates' && t.key !== 'cost-impact')
+  }, [isManager])
+
+  useEffect(() => {
+    if (!isManager && (tab === 'freight-rates' || tab === 'cost-impact')) {
+      setTab('overview')
+    }
+  }, [isManager, tab])
+
   return (
     <div className="data-layout panel" style={{ padding: 16, overflow: 'auto' }}>
+      {!isManager ? (
+        <Tag color="blue" style={{ marginBottom: 12 }}>
+          运营组员视图：已隐藏海运费率、费用-营收及成本类字段
+        </Tag>
+      ) : null}
       <Tabs
         activeKey={tab}
         onChange={(k) => setTab(k as TabKey)}
-        items={[
-          { key: 'overview', label: '经营总览' },
-          { key: 'products', label: '商品' },
-          { key: 'orders', label: '订单' },
-          { key: 'inventory', label: '库存' },
-          { key: 'returns', label: '退货' },
-          { key: 'ads', label: '广告' },
-          { key: 'metrics', label: 'SKU 日指标' },
-          { key: 'lifecycle', label: '生命周期' },
-          { key: 'batches', label: '供应批次' },
-          { key: 'freight-rates', label: '海运费率' },
-          { key: 'cost-impact', label: '费用-营收' },
-        ]}
+        items={tabItems}
       />
 
       <Form
