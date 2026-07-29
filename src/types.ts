@@ -1,6 +1,6 @@
 export type ChatRole = 'user' | 'assistant' | 'system'
 
-export type UserRole = 'manager' | 'user'
+export type UserRole = 'admin' | 'manager' | 'user'
 
 export interface AuthUser {
   id: number
@@ -12,6 +12,7 @@ export interface AuthUser {
     view_freight_rates?: boolean
     view_cost_impact?: boolean
     view_purchase_cost?: boolean
+    view_agent_trace?: boolean
   }
 }
 
@@ -30,6 +31,31 @@ export interface ChatSource {
   source_path?: string
 }
 
+export interface TraceStep {
+  id: string
+  label: string
+  status: 'ok' | 'skipped' | 'error' | string
+  duration_ms: number
+  detail?: Record<string, unknown>
+}
+
+export interface AgentTrace {
+  request_id?: string | null
+  mode?: string
+  route?: string | null
+  route_via?: string | null
+  cache?: {
+    hit?: boolean
+    mode?: string | null
+    score?: number | null
+    skipped_semantic?: boolean
+  }
+  degraded?: boolean
+  total_ms?: number | null
+  ttft_ms?: number | null
+  steps?: TraceStep[]
+}
+
 export interface ChatMetadata {
   has_sql_context?: boolean
   has_rag_context?: boolean
@@ -44,6 +70,17 @@ export interface ChatMetadata {
   cache_score?: number
   cache_matched_question?: string
   visualizations?: VisualizationSpec[]
+  trace?: AgentTrace
+  route_ms?: number
+  sql_ms?: number
+  rag_ms?: number
+  enrich_ms?: number
+  retrieve_ms?: number
+  generate_ms?: number
+  ttft_ms?: number
+  total_ms?: number
+  cache_lookup_ms?: number
+  request_id?: string
 }
 
 export interface VisualizationSpec {
@@ -73,6 +110,13 @@ export interface SessionSummary {
   updated_at: string
 }
 
+export interface AdminSessionSummary extends SessionSummary {
+  user_id?: number | null
+  username?: string | null
+  display_name?: string | null
+  user_role?: string | null
+}
+
 export interface SessionMessage {
   id: number
   role: ChatRole
@@ -90,6 +134,13 @@ export interface SessionDetail {
   created_at: string
   updated_at: string
   messages: SessionMessage[]
+}
+
+export interface AdminSessionDetail extends SessionDetail {
+  user_id?: number | null
+  username?: string | null
+  display_name?: string | null
+  user_role?: string | null
 }
 
 export interface DataPage<T = Record<string, unknown>> {

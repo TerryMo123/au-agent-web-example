@@ -41,7 +41,7 @@ export default function LoginPage() {
             label="账号"
             rules={[{ required: true, message: '请输入账号' }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="moyong-manager / moyong-user" size="large" />
+            <Input prefix={<UserOutlined />} placeholder="moyong-admin / moyong-manager / moyong-user" size="large" />
           </Form.Item>
           <Form.Item
             name="password"
@@ -55,7 +55,7 @@ export default function LoginPage() {
           </Button>
         </Form>
         <Typography.Paragraph type="secondary" style={{ marginTop: 16, marginBottom: 0, fontSize: 12 }}>
-          演示账号：组长 moyong-manager / 组员 moyong-user，密码均为 my123456
+          演示账号：管理员 moyong-admin / 组长 moyong-manager / 组员 moyong-user，密码均为 my123456
         </Typography.Paragraph>
       </Card>
     </div>

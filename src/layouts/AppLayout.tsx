@@ -1,6 +1,7 @@
-import { Button, Layout, Menu, Space, Tag, Typography } from 'antd'
+import { Button, Layout, Menu, Modal, Space, Tag, Typography } from 'antd'
 import {
   BarChartOutlined,
+  ExclamationCircleOutlined,
   LogoutOutlined,
   MessageOutlined,
 } from '@ant-design/icons'
@@ -14,6 +15,22 @@ export default function AppLayout() {
   const navigate = useNavigate()
   const selected = location.pathname.startsWith('/data') ? 'data' : 'chat'
   const { user, logout, isManager } = useAuth()
+
+  const handleLogout = () => {
+    Modal.confirm({
+      title: '确认退出登录？',
+      icon: <ExclamationCircleOutlined />,
+      content: '退出后需要重新登录才能继续使用。',
+      okText: '确认退出',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      centered: true,
+      onOk: () => {
+        logout()
+        navigate('/login', { replace: true })
+      },
+    })
+  }
 
   return (
     <Layout className="app-shell">
@@ -40,20 +57,27 @@ export default function AppLayout() {
           ]}
         />
         <Space style={{ marginLeft: 16 }}>
-          <Typography.Text style={{ color: 'rgba(255,255,255,0.85)' }}>
+          <Typography.Text className="header-user-name">
             {user?.display_name || user?.username}
           </Typography.Text>
-          <Tag color={isManager ? 'gold' : 'blue'}>
-            {isManager ? '运营组长' : '运营组员'}
+          <Tag
+            color={
+              user?.role === 'admin' ? 'purple' : isManager ? 'gold' : 'blue'
+            }
+          >
+            {user?.role === 'admin'
+              ? '系统管理员'
+              : isManager
+                ? '运营组长'
+                : '运营组员'}
           </Tag>
           <Button
-            type="text"
+            className="header-logout-btn"
+            type="default"
+            danger
+            ghost
             icon={<LogoutOutlined />}
-            onClick={() => {
-              logout()
-              navigate('/login', { replace: true })
-            }}
-            style={{ color: 'rgba(255,255,255,0.85)' }}
+            onClick={handleLogout}
           >
             退出
           </Button>

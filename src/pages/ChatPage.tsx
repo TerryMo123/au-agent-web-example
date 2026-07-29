@@ -7,6 +7,7 @@ import {
   Layout,
   Space,
   Spin,
+  Tabs,
   Tag,
   Tooltip,
   Typography,
@@ -29,6 +30,8 @@ import {
   listSessions,
   streamChat,
 } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
+import AdminTracePanel from '../components/AdminTracePanel'
 import MessageVisualizations from '../components/MessageVisualizations'
 import type { SessionMessage, SessionSummary, UiMessage, VisualizationSpec } from '../types'
 
@@ -79,6 +82,8 @@ function metaTags(msg: UiMessage) {
 
 export default function ChatPage() {
   const { message } = App.useApp()
+  const { isAdmin } = useAuth()
+  const [mainTab, setMainTab] = useState<'chat' | 'trace'>('chat')
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<UiMessage[]>([])
@@ -335,7 +340,7 @@ export default function ChatPage() {
     if (el) el.scrollTop = el.scrollHeight
   }, [messages, stage])
 
-  return (
+  const chatPanel = (
     <Layout className="chat-layout">
       <Sider
         width={280}
@@ -505,5 +510,20 @@ export default function ChatPage() {
         </div>
       </Content>
     </Layout>
+  )
+
+  if (!isAdmin) return chatPanel
+
+  return (
+    <div className="chat-page-tabs">
+      <Tabs
+        activeKey={mainTab}
+        onChange={(k) => setMainTab(k as 'chat' | 'trace')}
+        items={[
+          { key: 'chat', label: '对话', children: chatPanel },
+          { key: 'trace', label: '执行轨迹', children: <AdminTracePanel /> },
+        ]}
+      />
+    </div>
   )
 }

@@ -16,6 +16,7 @@ type AuthContextValue = {
   login: (username: string, password: string) => Promise<void>
   logout: () => void
   isManager: boolean
+  isAdmin: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -56,7 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       login,
       logout,
-      isManager: user?.role === 'manager',
+      isAdmin: user?.role === 'admin',
+      isManager: user?.role === 'manager' || user?.role === 'admin',
     }),
     [user, loading, login, logout],
   )

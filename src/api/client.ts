@@ -1,6 +1,8 @@
 import axios from 'axios'
 import type {
   AuthUser,
+  AdminSessionDetail,
+  AdminSessionSummary,
   ChatResponse,
   DataPage,
   FilterOptions,
@@ -84,6 +86,19 @@ export async function getSession(sessionId: string) {
 
 export async function deleteSession(sessionId: string) {
   await http.delete(`/sessions/${sessionId}`)
+}
+
+export async function listAdminSessions(limit = 50) {
+  const { data } = await http.get<{ items: AdminSessionSummary[]; total: number }>(
+    '/admin/sessions',
+    { params: { limit } },
+  )
+  return data
+}
+
+export async function getAdminSession(sessionId: string) {
+  const { data } = await http.get<AdminSessionDetail>(`/admin/sessions/${sessionId}`)
+  return data
 }
 
 export type StreamHandlers = {
