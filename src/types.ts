@@ -44,6 +44,7 @@ export interface AgentTrace {
   mode?: string
   route?: string | null
   route_via?: string | null
+  route_via_label?: string | null
   cache?: {
     hit?: boolean
     mode?: string | null
@@ -54,6 +55,8 @@ export interface AgentTrace {
   total_ms?: number | null
   ttft_ms?: number | null
   steps?: TraceStep[]
+  /** 行动线标签序列，便于一览全链路 */
+  action_line?: string[]
 }
 
 export interface ChatMetadata {

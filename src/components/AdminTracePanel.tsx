@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  Collapse,
   Empty,
   Layout,
   Progress,
@@ -31,6 +32,112 @@ function formatMs(ms?: number | null) {
   if (ms == null || Number.isNaN(ms)) return '—'
   if (ms < 1000) return `${Math.round(ms)} ms`
   return `${(ms / 1000).toFixed(2)} s`
+}
+
+function statusTag(status: string) {
+  if (status === 'error') return <Tag color="error">失败/降级</Tag>
+  if (status === 'skipped') return <Tag>跳过</Tag>
+  return <Tag color="success">成功</Tag>
+}
+
+function formatDetailValue(value: unknown): string {
+  if (value == null) return '—'
+  if (typeof value === 'boolean') return value ? '是' : '否'
+  if (typeof value === 'number') return String(value)
+  if (typeof value === 'string') return value || '—'
+  if (Array.isArray(value)) {
+    if (!value.length) return '（空）'
+    if (value.every((x) => typeof x === 'string' || typeof x === 'number')) {
+      return value.map(String).join('、')
+    }
+    return JSON.stringify(value, null, 2)
+  }
+  return JSON.stringify(value, null, 2)
+}
+
+const DETAIL_LABELS: Record<string, string> = {
+  sql_hits: 'SQL 信号',
+  rag_hits: 'RAG 信号',
+  hybrid_hits: 'Hybrid 信号',
+  route: '路由',
+  via: '判定方式',
+  reason: '原因码',
+  llm_invoked: '触发小模型',
+  invoked: '已调用',
+  raw_preview: '模型原文预览',
+  matched_keys: '命中指标',
+  matched: '是否匹配',
+  item_count: '条目数',
+  reason_count: '原因数',
+  deferred: '已延后',
+  success: 'SQL 成功',
+  repaired: 'SQL 已修复',
+  row_count: '行数',
+  sql_preview: 'SQL 预览',
+  error: '错误',
+  titles: '文档标题',
+  source_count: '引用数',
+  has_context: '有上下文',
+  has_rag_context: '注入 RAG',
+  has_sql: '有 SQL 结果',
+  has_rag: '有 RAG 结果',
+  answer_chars: '答案字数',
+  degraded: '已降级',
+  stream_error: '流式错误',
+  partial: '部分输出',
+  result: '缓存结果',
+  follow_up: '追问',
+  semantic_allowed: '允许语义缓存',
+  score: '相似度',
+  mode: '模式',
+  fallback_route: '兜底路由',
+  metrics: '指标',
+  inventory: '库存 Skill',
+  ad: '广告 Skill',
+  return: '退货 Skill',
+  viz_count: '图表数',
+  ttft_ms: 'TTFT(ms)',
+  has_sql_context: '有 SQL 上下文',
+  parallel: '并行执行',
+  branch: '并行支路',
+  sql_branch_ms: 'SQL 支路耗时(ms)',
+  rag_branch_ms: 'RAG 支路耗时(ms)',
+  wall_ms: '并行墙钟(ms)',
+  branch_total_ms: '本支路总耗时(ms)',
+  note: '说明',
+  sql_step_count: 'SQL 支路步数',
+  rag_step_count: 'RAG 支路步数',
+}
+
+function DetailBlock({ detail }: { detail?: Record<string, unknown> }) {
+  if (!detail || !Object.keys(detail).length) {
+    return (
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        无附加详情
+      </Typography.Text>
+    )
+  }
+  const entries = Object.entries(detail).filter(([, v]) => v !== undefined)
+  return (
+    <div className="trace-step-detail">
+      {entries.map(([key, value]) => {
+        const text = formatDetailValue(value)
+        const multiline = text.includes('\n') || text.length > 80
+        return (
+          <div key={key} className="trace-detail-row">
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {DETAIL_LABELS[key] || key}
+            </Typography.Text>
+            {multiline ? (
+              <pre className="trace-detail-pre">{text}</pre>
+            ) : (
+              <Typography.Text style={{ fontSize: 12 }}>{text}</Typography.Text>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 /** 兼容改造前仅有扁平 *_ms 的历史消息 */
@@ -68,6 +175,7 @@ function TraceWaterfall({ meta, route }: { meta?: ChatMetadata; route?: string |
     trace?.total_ms ??
     meta?.total_ms ??
     steps.reduce((s, x) => s + (x.duration_ms || 0), 0)
+  const viaLabel = trace?.route_via_label || trace?.route_via || meta?.route_via
 
   if (!steps.length) {
     return (
@@ -83,7 +191,7 @@ function TraceWaterfall({ meta, route }: { meta?: ChatMetadata; route?: string |
         {(trace?.route || route) && (
           <Tag color="green">路由 {trace?.route || route}</Tag>
         )}
-        {trace?.route_via && <Tag>via {trace.route_via}</Tag>}
+        {viaLabel && <Tag color="blue">{viaLabel}</Tag>}
         {trace?.cache?.hit && (
           <Tag color="cyan">缓存 {trace.cache.mode || 'hit'}</Tag>
         )}
@@ -93,30 +201,74 @@ function TraceWaterfall({ meta, route }: { meta?: ChatMetadata; route?: string |
           <Tag>TTFT {formatMs(trace?.ttft_ms ?? meta?.ttft_ms)}</Tag>
         )}
       </Space>
-      {steps.map((step) => {
-        const pct = total > 0 ? Math.min(100, (step.duration_ms / total) * 100) : 0
-        const statusColor =
-          step.status === 'error' ? 'exception' : step.status === 'skipped' ? 'normal' : 'success'
-        return (
-          <div key={`${step.id}-${step.label}`} className="trace-step-row">
-            <div className="trace-step-head">
-              <Typography.Text strong style={{ fontSize: 13 }}>
-                {step.label}
-              </Typography.Text>
+
+      {trace?.action_line && trace.action_line.length > 0 && (
+        <Typography.Paragraph
+          type="secondary"
+          style={{ fontSize: 12, marginBottom: 10 }}
+          ellipsis={{ rows: 2, expandable: true, symbol: '展开行动线' }}
+        >
+          行动线：{trace.action_line.join(' → ')}
+        </Typography.Paragraph>
+      )}
+
+      <Collapse
+        size="small"
+        bordered={false}
+        className="trace-collapse"
+        items={steps.map((step, idx) => {
+          const pct = total > 0 ? Math.min(100, (step.duration_ms / total) * 100) : 0
+          const statusColor =
+            step.status === 'error'
+              ? 'exception'
+              : step.status === 'skipped'
+                ? 'normal'
+                : 'success'
+          const hasDetail = Boolean(
+            step.detail && Object.keys(step.detail).length > 0,
+          )
+          const isParallel =
+            step.id === 'parallel_sql_rag' || Boolean(step.detail?.parallel)
+          const branch = step.detail?.branch
+          return {
+            key: `${step.id}-${idx}`,
+            label: (
+              <div className="trace-step-collapse-label">
+                <div className="trace-step-head">
+                  <Space size={6} wrap>
+                    <Typography.Text strong style={{ fontSize: 13 }}>
+                      {idx + 1}. {step.label}
+                    </Typography.Text>
+                    {statusTag(step.status)}
+                    {isParallel ? <Tag color="purple">并行</Tag> : null}
+                    {branch === 'sql' ? <Tag>SQL</Tag> : null}
+                    {branch === 'rag' ? <Tag>RAG</Tag> : null}
+                  </Space>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    {step.status === 'skipped' && !step.duration_ms
+                      ? '跳过'
+                      : formatMs(step.duration_ms)}
+                  </Typography.Text>
+                </div>
+                <Progress
+                  percent={Number(pct.toFixed(1))}
+                  size="small"
+                  status={statusColor}
+                  showInfo={false}
+                  strokeColor={step.status === 'skipped' ? '#d9d9d9' : undefined}
+                />
+              </div>
+            ),
+            children: hasDetail ? (
+              <DetailBlock detail={step.detail} />
+            ) : (
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {step.status === 'skipped' ? '跳过' : formatMs(step.duration_ms)}
+                无附加详情
               </Typography.Text>
-            </div>
-            <Progress
-              percent={Number(pct.toFixed(1))}
-              size="small"
-              status={statusColor}
-              showInfo={false}
-              strokeColor={step.status === 'skipped' ? '#d9d9d9' : undefined}
-            />
-          </div>
-        )
-      })}
+            ),
+          }
+        })}
+      />
     </div>
   )
 }
@@ -187,7 +339,7 @@ export default function AdminTracePanel() {
         <div className="session-sider-header">
           <Typography.Text strong>全员会话</Typography.Text>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            含各用户提问与阶段耗时
+            含各用户提问与完整行动线
           </Typography.Text>
         </div>
         <Spin spinning={loadingList}>
@@ -224,7 +376,7 @@ export default function AdminTracePanel() {
           <Typography.Text type="secondary">
             {detail
               ? `${detail.display_name || detail.username || '未知'} · ${roleLabel(detail.user_role)} · ${detail.messages.length} 条消息`
-              : '选择左侧会话查看各阶段耗时'}
+              : '选择左侧会话查看路由 / Skill / 降级详情'}
           </Typography.Text>
         </div>
 
