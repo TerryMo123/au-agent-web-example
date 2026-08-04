@@ -2,6 +2,7 @@ import { ConfigProvider, App as AntApp } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
+import BaiduTongjiRouteListener from './components/BaiduTongjiRouteListener'
 import RequireAuth from './components/RequireAuth'
 import AppLayout from './layouts/AppLayout'
 import ChatPage from './pages/ChatPage'
@@ -28,6 +29,7 @@ export default function App() {
       <AntApp>
         <AuthProvider>
           <BrowserRouter>
+            <BaiduTongjiRouteListener />
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route

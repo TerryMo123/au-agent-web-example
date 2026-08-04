@@ -5,6 +5,9 @@ COPY package.json package-lock.json* ./
 # 有 lockfile 用 npm ci（可复现）；没有则 npm install（兼容未提交 lock 的仓库）
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY . .
+# 构建期注入 Vite 环境变量（百度统计等）
+ARG VITE_BAIDU_TONGJI_ID=
+ENV VITE_BAIDU_TONGJI_ID=$VITE_BAIDU_TONGJI_ID
 RUN npm run build
 
 # Nginx 托管 + 反代 /api
